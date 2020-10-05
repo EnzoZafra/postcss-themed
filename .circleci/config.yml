@@ -1,111 +1,13 @@
+# Use the latest 2.1 version of CircleCI pipeline process engine. See: https://circleci.com/docs/2.0/configuration-reference
 version: 2.1
-
-defaults: &defaults
-  working_directory: ~/postcss-themed
-  docker:
-    - image: circleci/node:8.14-browsers
-  environment:
-    TZ: "/usr/share/zoneinfo/America/Los_Angeles"
-
-aliases:
-  # Circle related commands
-  - &restore-cache
-    keys:
-      # Find a cache corresponding to this specific package.json checksum
-      # when this file is changed, this key will fail
-      - auto-{{ checksum "yarn.lock" }}-{{ checksum ".circleci/config.yml" }}
-      - auto-{{ checksum "yarn.lock" }}
-      # Find the most recent cache used from any branch
-      - auto-
-  - &save-cache
-    key: auto-{{ checksum "yarn.lock" }}-{{ checksum ".circleci/config.yml" }}
-    paths:
-      - ~/.cache/yarn
-      - node_modules
-  # Yarn commands
-  - &yarn
-    name: Install Dependencies
-    command: yarn install --frozen-lockfile --non-interactive --cache-folder=~/.cache/yarn
-  - &lint
-    name: Lint
-    command: yarn lint
-  - &test
-    name: Test
-    command: yarn test
-  - &build
-    name: Build
-    command: yarn build
-
-jobs:
-  install:
-    <<: *defaults
-    steps:
-      - checkout
-      - restore_cache: *restore-cache
-      - run: *yarn
-      - save_cache: *save-cache
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
-
-  build:
-    <<: *defaults
-    steps:
-      - attach_workspace:
-          at: ~/postcss-themed
-      - run: *build
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
-
-  lint:
-    <<: *defaults
-    steps:
-      - attach_workspace:
-          at: ~/postcss-themed
-      - run: *lint
-
-  test:
-    <<: *defaults
-    steps:
-      - attach_workspace:
-          at: ~/postcss-themed
-      - run: *test
-      - run:
-          name: Send CodeCov Results
-          command: bash <(curl -s https://codecov.io/bash) -t $CODECOV_KEY
-
-  release:
-    <<: *defaults
-    steps:
-      - attach_workspace:
-          at: ~/postcss-themed
-      - run: mkdir ~/.ssh/ && echo -e "Host github.com\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
-      - run:
-          name: Release
-          command: yarn run release
-
+# Use a package of configuration called an orb.
+orbs:
+  # Declare a dependency on the welcome-orb
+  welcome: circleci/welcome-orb@0.4.1
+# Orchestrate or schedule a set of jobs
 workflows:
-  version: 2
-  build_and_test:
+  # Name the workflow "welcome"
+  welcome:
+    # Run the welcome/run job in its own container
     jobs:
-      - install
-
-      - build:
-          requires:
-            - install
-
-      - lint:
-          requires:
-            - build
-
-      - test:
-          requires:
-            - build
-
-      - release:
-          requires:
-            - test
-            - lint
+      - welcome/run
